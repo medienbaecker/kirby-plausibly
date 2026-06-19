@@ -12,13 +12,11 @@ Kirby::plugin(
 	license: fn($plugin) => new License($plugin),
 	extends: [
 		'options' => [
-			'url'    => null,
-			'site'   => null,
-			'token'  => null,
-			'script' => null,
+			'url'   => null,
+			'site'  => null,
+			'token' => null,
 		],
 		'translations' => require __DIR__ . '/translations.php',
-		'snippets'     => ['plausibly' => __DIR__ . '/snippets/plausibly.php'],
 		'areas'        => array_merge(
 			require __DIR__ . '/areas/plausibly.php',
 			require __DIR__ . '/areas/license.php'

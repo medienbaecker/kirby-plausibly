@@ -37,26 +37,17 @@ Create a Stats API key in your Plausible account settings, then add to `site/con
 
 ```php
 return [
-    'medienbaecker.plausibly.url'    => 'https://plausible.io', // your Plausible instance
-    'medienbaecker.plausibly.site'   => 'example.com',          // the site_id / domain
-    'medienbaecker.plausibly.token'  => 'your-stats-api-key',
-    'medienbaecker.plausibly.script' => null,                   // optional: tracking script URL override
+    'medienbaecker.plausibly.url'   => 'https://plausible.io', // your Plausible instance
+    'medienbaecker.plausibly.site'  => 'example.com',          // the site_id / domain
+    'medienbaecker.plausibly.token' => 'your-stats-api-key',
 ];
 ```
 
-The Analytics view only appears once all three options are set. The API token stays on the server —
-the Panel talks only to the plugin's own API routes.
+The Analytics view only appears once all three options are set. The API token stays on the server — the Panel talks only to the plugin's own API routes.
 
 ## Tracking
 
-To collect the data, add the tracking snippet inside your `<head>`:
-
-```php
-<?= snippet('plausibly') ?>
-```
-
-It reuses the `url` and `site` options above, and is skipped in debug mode and for logged-in Panel
-users. By default it loads `<url>/js/script.js`; to use a [script extension](https://plausible.io/docs/script-extensions) or a proxied URL, set the full URL via `medienbaecker.plausibly.script`.
+This plugin only renders the dashboard. To collect data, add Plausible's own tracking snippet to your site's `<head>` — copy it from your Plausible dashboard under **Site Settings → Installation**.
 
 ## Licensing
 
@@ -66,5 +57,4 @@ Kirby Plausibly is a commercial plugin. You can use it for free on local environ
 
 ## Credits
 
-Inspired by [kirby-matomo](https://github.com/sylvainjule/kirby-matomo) by Sylvain Julé, which
-brought a native Matomo dashboard to the Panel. This plugin does the same for Plausible Analytics.
+Inspired by [kirby-matomo](https://github.com/sylvainjule/kirby-matomo) by Sylvain Julé, which brought a native Matomo dashboard to the Panel. This plugin does the same for Plausible Analytics.
