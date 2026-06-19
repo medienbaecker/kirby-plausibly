@@ -3,6 +3,7 @@
     "description": "A native Plausible Analytics dashboard for the Kirby Panel",
     "license": "proprietary",
     "type": "kirby-plugin",
+    "version": "1.0.2",
     "keywords": ["kirby", "kirby-plugin", "plausible", "analytics", "panel", "dashboard", "statistics"],
     "authors": [
         {
