@@ -1,0 +1,14 @@
+{
+  "name": "kirby-plausibly",
+  "private": true,
+  "scripts": {
+    "dev": "kirbyup serve src/index.js",
+    "build": "kirbyup src/index.js"
+  },
+  "dependencies": {
+    "uplot": "^1.6.32"
+  },
+  "devDependencies": {
+    "kirbyup": "^3.4.1"
+  }
+}

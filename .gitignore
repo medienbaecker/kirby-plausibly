@@ -1,0 +1,23 @@
+# os
+.DS_Store
+
+# local notes
+TODOS.md
+
+# editors
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# composer
+composer.lock
+vendor/
+
+# Node
+node_modules/
+.pnpm-store/
+pnpm-debug.log*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
