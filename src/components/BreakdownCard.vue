@@ -32,6 +32,7 @@ export default {
 		title: { type: String, required: true },
 		tabs: { type: Array, required: true },
 		period: { type: String, default: "28d" },
+		date: { type: String, default: null },
 		faviconBase: { type: String, default: "" },
 		defaultTab: { type: String, default: null },
 	},
@@ -80,9 +81,13 @@ export default {
 		locale() {
 			return this.$panel.translation?.code || "en";
 		},
+		// One key for both so changing period+date together reloads once, not twice.
+		window() {
+			return `${this.period}|${this.date}`;
+		},
 	},
 	watch: {
-		period() {
+		window() {
 			this.expanded = false;
 			this.load();
 		},
@@ -99,6 +104,7 @@ export default {
 					dimension: this.tab.dimension,
 					metrics: this.tab.metrics.join(","),
 					period: this.period,
+					...(this.date ? { date: this.date } : {}),
 					limit: MAX,
 				});
 				if (token !== this.loadToken) return;

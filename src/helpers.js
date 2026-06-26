@@ -76,6 +76,105 @@ export function intervalFor(period) {
 	}
 }
 
+// How far one ‹ › step moves the anchor, per period. null = not navigable.
+export const STEP = {
+	day: { unit: "day", n: 1 },
+	"7d": { unit: "day", n: 7 },
+	"28d": { unit: "day", n: 28 },
+	"30d": { unit: "day", n: 30 },
+	"91d": { unit: "day", n: 91 },
+	month: { unit: "month", n: 1 },
+	"6mo": { unit: "month", n: 6 },
+	"12mo": { unit: "month", n: 12 },
+	year: { unit: "year", n: 1 },
+	all: null,
+};
+
+function parseYmd(s) {
+	const [y, m, d] = s.split("-").map(Number);
+	return new Date(y, m - 1, d);
+}
+
+function formatYmd(date) {
+	const y = date.getFullYear();
+	const m = String(date.getMonth() + 1).padStart(2, "0");
+	const d = String(date.getDate()).padStart(2, "0");
+	return `${y}-${m}-${d}`;
+}
+
+function startOfToday() {
+	const now = new Date();
+	return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+// Step a date by whole days/months/years. Month/year steps first snap to the
+// 1st so repeated stepping never skips a short month (e.g. Mar 31 → Feb).
+function addStep(date, unit, amount) {
+	const d = new Date(date.getTime());
+	if (unit === "day") d.setDate(d.getDate() + amount);
+	else if (unit === "month") {
+		d.setDate(1);
+		d.setMonth(d.getMonth() + amount);
+	} else if (unit === "year") d.setFullYear(d.getFullYear() + amount);
+	return d;
+}
+
+// "Now" anchor per period, mirroring the backend: rolling windows end
+// yesterday, day is today, month/year key off the current month/year.
+function nowAnchor(period) {
+	const t = startOfToday();
+	const step = STEP[period];
+	if (period === "day" || !step) return t;
+	if (step.unit === "day") return addStep(t, "day", -1);
+	if (step.unit === "month") return new Date(t.getFullYear(), t.getMonth(), 1);
+	return new Date(t.getFullYear(), 0, 1); // year
+}
+
+export function yesterdayYmd() {
+	return formatYmd(addStep(startOfToday(), "day", -1));
+}
+
+// Move the anchor by `delta` steps. Returns the new anchor as "Y-m-d", or
+// null when the step reaches/passes "now" (snap back to the live view), or
+// undefined when the period can't be navigated (all time).
+export function shiftAnchor(period, date, delta) {
+	const step = STEP[period];
+	if (!step) return undefined;
+	const now = nowAnchor(period);
+	const base = date ? parseYmd(date) : now;
+	const next = addStep(base, step.unit, delta * step.n);
+	if (next >= now) return null;
+	return formatYmd(next);
+}
+
+// Human label for a navigated (non-live) view, e.g. "23 Jun 2026",
+// "June 2026", "2026", "27 May – 23 Jun 2026", "Jan – Jun 2026".
+export function navLabel(period, date, locale) {
+	const loc = locale || "en";
+	const end = parseYmd(date);
+	const fmt = (opts) => new Intl.DateTimeFormat(loc, opts).format(end);
+
+	if (period === "day")
+		return fmt({ day: "numeric", month: "short", year: "numeric" });
+	if (period === "month") return fmt({ month: "long", year: "numeric" });
+	if (period === "year") return String(end.getFullYear());
+
+	const step = STEP[period];
+	if (step.unit === "month") {
+		const first = new Date(end.getFullYear(), end.getMonth(), 1);
+		const start = addStep(first, "month", -(step.n - 1));
+		const ms = new Intl.DateTimeFormat(loc, { month: "short" }).format(start);
+		const me = new Intl.DateTimeFormat(loc, { month: "short", year: "numeric" }).format(end);
+		return `${ms} – ${me}`;
+	}
+
+	// rolling day windows (7d / 28d / 30d / 91d)
+	const start = addStep(end, "day", -(step.n - 1));
+	const ds = new Intl.DateTimeFormat(loc, { day: "numeric", month: "short" }).format(start);
+	const de = new Intl.DateTimeFormat(loc, { day: "numeric", month: "short", year: "numeric" }).format(end);
+	return `${ds} – ${de}`;
+}
+
 // ISO 3166-1 alpha-2 -> flag emoji
 export function countryFlag(code) {
 	if (!code || code.length !== 2) return "🏳️";

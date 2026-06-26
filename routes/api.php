@@ -43,12 +43,23 @@ $period = function (array $allowed) {
 	return in_array($period, $allowed, true) ? $period : '28d';
 };
 
+$date = function () {
+	$value = kirby()->request()->get('date');
+	if (is_string($value) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+		[$y, $m, $d] = array_map('intval', explode('-', $value));
+		if (checkdate($m, $d, $y)) {
+			return $value;
+		}
+	}
+	return null;
+};
+
 return [
 	[
 		'pattern' => 'plausible/aggregate',
-		'action'  => function () use ($period, $allowedPeriods, $kpiMetrics) {
+		'action'  => function () use ($period, $date, $allowedPeriods, $kpiMetrics) {
 			try {
-				return ['data' => (new Client())->aggregate($period($allowedPeriods), $kpiMetrics)];
+				return ['data' => (new Client())->aggregate($period($allowedPeriods), $kpiMetrics, $date())];
 			} catch (\Throwable $e) {
 				return ['error' => $e->getMessage()];
 			}
@@ -56,14 +67,14 @@ return [
 	],
 	[
 		'pattern' => 'plausible/timeseries',
-		'action'  => function () use ($period, $allowedPeriods, $allowedIntervals, $kpiMetrics) {
+		'action'  => function () use ($period, $date, $allowedPeriods, $allowedIntervals, $kpiMetrics) {
 			try {
 				$metric   = kirby()->request()->get('metric', 'visitors');
 				$metric   = in_array($metric, $kpiMetrics, true) ? $metric : 'visitors';
 				$interval = kirby()->request()->get('interval', 'day');
 				$interval = in_array($interval, $allowedIntervals, true) ? $interval : 'day';
 
-				return ['data' => (new Client())->timeseries($period($allowedPeriods), $metric, $interval)];
+				return ['data' => (new Client())->timeseries($period($allowedPeriods), $metric, $interval, $date())];
 			} catch (\Throwable $e) {
 				return ['error' => $e->getMessage()];
 			}
@@ -71,7 +82,7 @@ return [
 	],
 	[
 		'pattern' => 'plausible/breakdown',
-		'action'  => function () use ($period, $allowedPeriods, $allowedDimensions, $allowedMetrics, $pageDimensions) {
+		'action'  => function () use ($period, $date, $allowedPeriods, $allowedDimensions, $allowedMetrics, $pageDimensions) {
 			try {
 				$dimension = kirby()->request()->get('dimension');
 				if (in_array($dimension, $allowedDimensions, true) === false) {
@@ -89,7 +100,7 @@ return [
 				$limit = (int) kirby()->request()->get('limit', 9);
 				$limit = max(1, min($limit, 100));
 
-				$rows = (new Client())->breakdown($dimension, $metrics, $period($allowedPeriods), $limit);
+				$rows = (new Client())->breakdown($dimension, $metrics, $period($allowedPeriods), $limit, $date());
 
 				if (in_array($dimension, $pageDimensions, true)) {
 					foreach ($rows as &$row) {

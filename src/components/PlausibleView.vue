@@ -13,39 +13,52 @@
 					<k-button :dropdown="true" icon="calendar" variant="filled" size="sm" :text="periodLabel"
 						@click="$refs.periods.toggle()" />
 					<k-dropdown-content ref="periods" align-x="end">
-						<k-dropdown-item v-for="p in periodOptions" :key="p" icon="calendar" :current="p === period"
-							@click="setPeriod(p)">
-							{{ periodName(p) }}
-						</k-dropdown-item>
+						<template v-for="(item, i) in menuItems">
+							<hr v-if="item.divider" :key="'hr' + i" />
+							<k-dropdown-item v-else :key="item.key" icon="calendar" :current="isCurrent(item)"
+								@click="selectItem(item)">
+								{{ itemLabel(item) }}
+							</k-dropdown-item>
+						</template>
 					</k-dropdown-content>
 				</div>
+
+				<k-button-group class="k-plausible-nav">
+					<k-button icon="angle-left" variant="filled" size="sm" :disabled="prevDisabled"
+						:title="$t('medienbaecker.plausibly.previousPeriod')" @click="shiftPeriod(-1)" />
+					<k-button icon="angle-right" variant="filled" size="sm" :disabled="nextDisabled"
+						:title="$t('medienbaecker.plausibly.nextPeriod')" @click="shiftPeriod(1)" />
+				</k-button-group>
 			</template>
 		</k-header>
 
 		<StatTiles :data="kpis" :selected="metric" @select="setMetric" />
 
 		<section class="k-plausible-chart-card">
-			<Chart :series="series" :metric="metric" :interval="interval" :loading="loadingChart" />
+			<Chart :series="series" :metric="metric" :interval="interval" :loading="loadingChart"
+				@select="onChartSelect" />
 		</section>
 
 		<k-grid variant="columns" class="k-plausible-grid">
 			<k-column width="1/2">
 				<BreakdownCard :title="$t('medienbaecker.plausibly.topSources')" :tabs="cards.sources"
-					default-tab="sources" :period="period" :favicon-base="faviconBase" />
+					default-tab="sources" :period="period" :date="date" :favicon-base="faviconBase" />
 			</k-column>
 			<k-column width="1/2">
-				<BreakdownCard :title="$t('medienbaecker.plausibly.topPages')" :tabs="cards.pages" :period="period" />
+				<BreakdownCard :title="$t('medienbaecker.plausibly.topPages')" :tabs="cards.pages" :period="period"
+					:date="date" />
 			</k-column>
 			<k-column width="1/2">
 				<BreakdownCard :title="$t('medienbaecker.plausibly.locations')" :tabs="cards.locations"
-					:period="period" />
+					:period="period" :date="date" />
 			</k-column>
 			<k-column width="1/2">
 				<BreakdownCard :title="$t('medienbaecker.plausibly.devices')" :tabs="cards.devices"
-					:period="period" />
+					:period="period" :date="date" />
 			</k-column>
 			<k-column width="1/1">
-				<BreakdownCard :title="$t('medienbaecker.plausibly.goals')" :tabs="cards.goals" :period="period" />
+				<BreakdownCard :title="$t('medienbaecker.plausibly.goals')" :tabs="cards.goals" :period="period"
+					:date="date" />
 			</k-column>
 		</k-grid>
 	</k-panel-inside>
@@ -55,7 +68,7 @@
 import StatTiles from "./StatTiles.vue";
 import Chart from "./Chart.vue";
 import BreakdownCard from "./BreakdownCard.vue";
-import { PERIODS, intervalFor, fetchData } from "../helpers.js";
+import { PERIODS, intervalFor, fetchData, STEP, shiftAnchor, navLabel, yesterdayYmd } from "../helpers.js";
 
 export default {
 	components: { StatTiles, Chart, BreakdownCard },
@@ -66,8 +79,10 @@ export default {
 	data() {
 		const query = this.$panel.view?.query || {};
 		const period = PERIODS.includes(query.period) ? query.period : "28d";
+		const date = /^\d{4}-\d{2}-\d{2}$/.test(query.date || "") ? query.date : null;
 		return {
 			period,
+			date,
 			interval: intervalFor(period),
 			metric: "visitors",
 			kpis: {},
@@ -78,11 +93,41 @@ export default {
 		};
 	},
 	computed: {
-		periodOptions() {
-			return PERIODS;
+		locale() {
+			return this.$panel.translation?.code || "en";
+		},
+		yesterdayStr() {
+			return yesterdayYmd();
+		},
+		menuItems() {
+			return [
+				{ key: "today", period: "day" },
+				{ key: "yesterday", period: "day", anchor: "yesterday" },
+				{ divider: true },
+				{ key: "7d", period: "7d" },
+				{ key: "28d", period: "28d" },
+				{ key: "30d", period: "30d" },
+				{ key: "91d", period: "91d" },
+				{ divider: true },
+				{ key: "month", period: "month" },
+				{ key: "6mo", period: "6mo" },
+				{ key: "12mo", period: "12mo" },
+				{ key: "year", period: "year" },
+				{ divider: true },
+				{ key: "all", period: "all" },
+			];
+		},
+		prevDisabled() {
+			return !STEP[this.period];
+		},
+		nextDisabled() {
+			return !STEP[this.period] || this.date === null;
 		},
 		periodLabel() {
-			return this.periodName(this.period);
+			if (this.date === null) return this.periodName(this.period);
+			if (this.period === "day" && this.date === this.yesterdayStr)
+				return this.$t("medienbaecker.plausibly.yesterday");
+			return navLabel(this.period, this.date, this.locale);
 		},
 		realtimeLabel() {
 			const key = this.realtime === 1 ? "currentVisitors" : "currentVisitors.plural";
@@ -136,18 +181,40 @@ export default {
 		this.loadChart();
 		this.loadRealtime();
 		this.pollTimer = setInterval(this.loadRealtime, 15000);
+		window.addEventListener("popstate", this.onPopState);
 	},
 	beforeDestroy() {
 		clearInterval(this.pollTimer);
+		window.removeEventListener("popstate", this.onPopState);
 	},
 	methods: {
 		periodName(p) {
 			return this.$t("medienbaecker.plausibly.period." + p);
 		},
-		setPeriod(p) {
-			if (p === this.period) return;
-			this.period = p;
-			this.interval = intervalFor(p);
+		resolveAnchor(item) {
+			return item.anchor === "yesterday" ? this.yesterdayStr : null;
+		},
+		isCurrent(item) {
+			return this.period === item.period && this.date === this.resolveAnchor(item);
+		},
+		itemLabel(item) {
+			if (item.anchor === "yesterday") return this.$t("medienbaecker.plausibly.yesterday");
+			return this.periodName(item.period);
+		},
+		selectItem(item) {
+			const anchor = this.resolveAnchor(item);
+			if (item.period === this.period && this.date === anchor) return;
+			this.period = item.period;
+			this.date = anchor;
+			this.interval = intervalFor(item.period);
+			this.updateUrl();
+			this.loadKpis();
+			this.loadChart();
+		},
+		shiftPeriod(delta) {
+			const next = shiftAnchor(this.period, this.date, delta);
+			if (next === undefined) return;
+			this.date = next;
 			this.updateUrl();
 			this.loadKpis();
 			this.loadChart();
@@ -156,15 +223,46 @@ export default {
 			this.metric = metric;
 			this.loadChart();
 		},
+		onChartSelect(date) {
+			if (this.interval === "hour") return; // nothing finer to drill into
+			const period = this.interval === "month" ? "month" : "day";
+			this.period = period;
+			this.date = date;
+			this.interval = intervalFor(period);
+			this.updateUrl();
+			this.loadKpis();
+			this.loadChart();
+		},
 		updateUrl() {
 			const url = new URL(window.location.href);
 			url.searchParams.set("period", this.period);
-			window.history.replaceState({}, "", url);
+			if (this.date) url.searchParams.set("date", this.date);
+			else url.searchParams.delete("date");
+			// pushState so back/forward steps through navigated views (see onPopState).
+			window.history.pushState({}, "", url);
+		},
+		onPopState() {
+			// Ignore back/forward that leaves this view (the Panel handles it).
+			if (!window.location.pathname.endsWith("/plausibly")) return;
+			const params = new URL(window.location.href).searchParams;
+			const p = params.get("period");
+			const period = PERIODS.includes(p) ? p : "28d";
+			const d = params.get("date");
+			const date = /^\d{4}-\d{2}-\d{2}$/.test(d || "") ? d : null;
+			if (period === this.period && date === this.date) return;
+			this.period = period;
+			this.date = date;
+			this.interval = intervalFor(period);
+			this.loadKpis();
+			this.loadChart();
 		},
 		async loadKpis() {
 			const token = (this.kpiToken = Symbol());
 			try {
-				const kpis = await fetchData(this.$api, "plausible/aggregate", { period: this.period });
+				const kpis = await fetchData(this.$api, "plausible/aggregate", {
+					period: this.period,
+					...(this.date ? { date: this.date } : {}),
+				});
 				if (token !== this.kpiToken) return; // superseded by a newer request
 				this.kpis = kpis;
 			} catch (e) {
@@ -180,6 +278,7 @@ export default {
 					period: this.period,
 					metric: this.metric,
 					interval: this.interval,
+					...(this.date ? { date: this.date } : {}),
 				});
 				if (token !== this.chartToken) return; // superseded by a newer request
 				this.series = series;

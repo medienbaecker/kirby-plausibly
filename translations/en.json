@@ -15,6 +15,10 @@
 	"period.year": "Year to date",
 	"period.all": "All time",
 
+	"yesterday": "Yesterday",
+	"previousPeriod": "Previous period",
+	"nextPeriod": "Next period",
+
 	"metric.visitors": "Unique visitors",
 	"metric.visits": "Total visits",
 	"metric.pageviews": "Total pageviews",

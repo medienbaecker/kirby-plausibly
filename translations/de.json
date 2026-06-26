@@ -15,6 +15,10 @@
 	"period.year": "Aktuelles Jahr",
 	"period.all": "Gesamter Zeitraum",
 
+	"yesterday": "Gestern",
+	"previousPeriod": "Vorheriger Zeitraum",
+	"nextPeriod": "Nächster Zeitraum",
+
 	"metric.visitors": "Eindeutige Besucher",
 	"metric.visits": "Besuche gesamt",
 	"metric.pageviews": "Seitenaufrufe gesamt",

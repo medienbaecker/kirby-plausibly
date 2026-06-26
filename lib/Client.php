@@ -50,11 +50,11 @@ class Client
 		return $data;
 	}
 
-	public function aggregate(string $period, array $metrics): array
+	public function aggregate(string $period, array $metrics, ?string $date = null): array
 	{
 		$current = $this->query([
 			'metrics'    => $metrics,
-			'date_range' => $this->range($period),
+			'date_range' => $this->range($period, $date),
 		]);
 
 		$values = $current['results'][0]['metrics'] ?? [];
@@ -83,14 +83,14 @@ class Client
 		return $result;
 	}
 
-	public function timeseries(string $period, string $metric, string $interval): array
+	public function timeseries(string $period, string $metric, string $interval, ?string $date = null): array
 	{
 		$derived = $metric === 'views_per_visit';
 		$metrics = $derived ? ['pageviews', 'visits'] : [$metric];
 
 		$data = $this->query([
 			'metrics'    => $metrics,
-			'date_range' => $this->range($period),
+			'date_range' => $this->range($period, $date),
 			'dimensions' => ['time:' . $interval],
 		]);
 
@@ -109,8 +109,12 @@ class Client
 			}
 		}
 
-		// Plausible omits empty buckets; zero-fill day/month
+		// Plausible omits empty buckets and, for hours, returns timezone
+		// boundary hours from adjacent days. Zero-fill to a consistent grid.
 		$range = $data['query']['date_range'] ?? null;
+		if ($interval === 'hour' && is_array($range)) {
+			return $this->fillHours($range[0], $values);
+		}
 		if ($range && ($interval === 'day' || $interval === 'month')) {
 			return $this->fillSeries($range, $interval, $values);
 		}
@@ -118,6 +122,34 @@ class Client
 		$series = [];
 		foreach ($values as $date => $value) {
 			$series[] = ['date' => $date, 'value' => $value];
+		}
+
+		return $series;
+	}
+
+	protected function fillHours(string $rangeStart, array $values): array
+	{
+		$day = substr($rangeStart, 0, 10);
+
+		// Past days show all 24 hours; today stops at the last hour with data
+		// (from the data, not the clock, so the site's timezone can't skew it).
+		$lastHour = 23;
+		try {
+			if ($day === (new DateTime('today'))->format('Y-m-d')) {
+				$lastHour = -1;
+				foreach ($values as $key => $value) {
+					if (strpos($key, $day . ' ') === 0) {
+						$lastHour = max($lastHour, (int) substr($key, 11, 2));
+					}
+				}
+			}
+		} catch (Throwable) {
+		}
+
+		$series = [];
+		for ($h = 0; $h <= $lastHour; $h++) {
+			$key = sprintf('%s %02d:00:00', $day, $h);
+			$series[] = ['date' => $key, 'value' => $values[$key] ?? 0];
 		}
 
 		return $series;
@@ -161,11 +193,11 @@ class Client
 		return $series;
 	}
 
-	public function breakdown(string $dimension, array $metrics, string $period, int $limit): array
+	public function breakdown(string $dimension, array $metrics, string $period, int $limit, ?string $date = null): array
 	{
 		$data = $this->query([
 			'metrics'    => $metrics,
-			'date_range' => $this->range($period),
+			'date_range' => $this->range($period, $date),
 			'dimensions' => [$dimension],
 			'order_by'   => [[$metrics[0], 'desc']],
 			'pagination' => ['limit' => $limit],
@@ -197,46 +229,72 @@ class Client
 		return (int) $response->content();
 	}
 
-	protected function range(string $period): array|string
+	protected function range(string $period, ?string $date = null): array|string
 	{
-		if ($period === 'day' || $period === 'all') {
-			return $period;
+		// No anchor: keep the keyword form so the default view is unchanged.
+		if ($period === 'all') {
+			return 'all';
+		}
+		if ($date === null && $period === 'day') {
+			return 'day';
 		}
 
 		try {
-			$end   = new DateTime('yesterday');
-			$start = clone $end;
+			// Rolling windows end yesterday; month/year windows key off today.
+			// The no-anchor defaults reproduce the original payload exactly.
+			$rollEnd  = $date ? new DateTime($date) : new DateTime('yesterday');
+			$monthRef = $date ? new DateTime($date) : new DateTime('today');
+			$maxEnd   = new DateTime('yesterday'); // today is partial, never send it
+			$today    = new DateTime('today');
 		} catch (Throwable) {
 			return $period;
 		}
 
+		if ($period === 'day') {
+			$day = $rollEnd > $today ? clone $today : clone $rollEnd;
+			return [$day->format('Y-m-d'), $day->format('Y-m-d')];
+		}
+
 		switch ($period) {
 			case '7d':
-				$start->modify('-6 days');
+				$end   = clone $rollEnd;
+				$start = (clone $rollEnd)->modify('-6 days');
 				break;
 			case '28d':
-				$start->modify('-27 days');
+				$end   = clone $rollEnd;
+				$start = (clone $rollEnd)->modify('-27 days');
 				break;
 			case '30d':
-				$start->modify('-29 days');
+				$end   = clone $rollEnd;
+				$start = (clone $rollEnd)->modify('-29 days');
 				break;
 			case '91d':
-				$start->modify('-90 days');
+				$end   = clone $rollEnd;
+				$start = (clone $rollEnd)->modify('-90 days');
 				break;
 			case 'month':
-				$start = new DateTime(date('Y-m-01'));
+				$start = new DateTime($monthRef->format('Y-m-01'));
+				$end   = (clone $start)->modify('last day of this month');
 				break;
 			case '6mo':
-				$start = (new DateTime(date('Y-m-01')))->modify('-5 months');
+				$start = (new DateTime($monthRef->format('Y-m-01')))->modify('-5 months');
+				$end   = (new DateTime($monthRef->format('Y-m-01')))->modify('last day of this month');
 				break;
 			case '12mo':
-				$start = (new DateTime(date('Y-m-01')))->modify('-11 months');
+				$start = (new DateTime($monthRef->format('Y-m-01')))->modify('-11 months');
+				$end   = (new DateTime($monthRef->format('Y-m-01')))->modify('last day of this month');
 				break;
 			case 'year':
-				$start = new DateTime(date('Y-01-01'));
+				$start = new DateTime($monthRef->format('Y-01-01'));
+				$end   = new DateTime($monthRef->format('Y-12-31'));
 				break;
 			default:
 				return $period;
+		}
+
+		// never send a future / partial-today end
+		if ($end > $maxEnd) {
+			$end = clone $maxEnd;
 		}
 
 		// guard against an empty range (e.g. "month" on the 1st)

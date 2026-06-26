@@ -105,11 +105,15 @@ export default {
 						? [30 * DAY, 60 * DAY, 90 * DAY, 180 * DAY, 365 * DAY]
 						: [DAY, 2 * DAY, 7 * DAY, 14 * DAY, 30 * DAY, 90 * DAY];
 
+			// Hour labels ("12:00 AM") are wide; a larger min-gap makes uPlot thin
+			// them out instead of overlapping every hour on wide screens.
+			const xSpace = interval === "hour" ? 70 : 50;
+
 			const opts = {
 				width: this.width(),
 				height: 240,
 				padding: [0, 0, 0, 0],
-				cursor: { y: false, points: { size: 7 } },
+				cursor: { y: false, drag: { x: false, y: false }, points: { size: 7 } },
 				legend: { show: false },
 				scales: {
 					x: { time: true },
@@ -119,6 +123,7 @@ export default {
 					{
 						stroke: c.axis,
 						size: 20,
+						space: xSpace,
 						grid: { show: false },
 						ticks: { show: false },
 						incrs: xIncrs,
@@ -166,6 +171,7 @@ export default {
 						color: c.axis,
 					}),
 					this.tooltipPlugin(),
+					this.clickPlugin(),
 				],
 			};
 
@@ -241,6 +247,22 @@ export default {
 						}
 
 						ctx.restore();
+					},
+				},
+			};
+		},
+		clickPlugin() {
+			const self = this;
+			return {
+				hooks: {
+					init: (u) => {
+						if (self.interval !== "hour") u.over.style.cursor = "pointer";
+						u.over.addEventListener("click", () => {
+							if (self.interval === "hour") return;
+							const idx = u.cursor.idx;
+							const date = idx == null ? null : self.series[idx]?.date;
+							if (date) self.$emit("select", String(date).slice(0, 10));
+						});
 					},
 				},
 			};
