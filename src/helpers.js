@@ -28,6 +28,7 @@ export function formatMetric(metric, value) {
 		case "bounce_rate":
 			return Math.round(value) + "%";
 		case "conversion_rate":
+		case "percentage":
 			return Math.round(value * 10) / 10 + "%";
 		case "views_per_visit":
 			return (Math.round(value * 100) / 100).toFixed(2);
@@ -62,7 +63,7 @@ export const PERIODS = [
 	"all",
 ];
 
-export function intervalFor(period) {
+export function intervalFor(period, span = null) {
 	switch (period) {
 		case "day":
 			return "hour";
@@ -71,9 +72,65 @@ export function intervalFor(period) {
 		case "year":
 		case "all":
 			return "month";
+		case "custom":
+			if (span === 1) return "hour";
+			if (span !== null && span > 93) return "month";
+			return "day";
 		default:
 			return "day";
 	}
+}
+
+export function spanDays(from, to) {
+	return Math.round((parseYmd(to) - parseYmd(from)) / 86400000) + 1;
+}
+
+const FILTER_OPS = ["is", "is_not", "contains"];
+
+// Client mirror of the PHP allow-list in routes/api.php
+const FILTERABLE_DIMENSIONS = [
+	"visit:source",
+	"visit:channel",
+	"visit:utm_campaign",
+	"event:page",
+	"visit:entry_page",
+	"visit:exit_page",
+	"visit:country",
+	"visit:region_name",
+	"visit:city_name",
+	"visit:browser",
+	"visit:os",
+	"visit:device",
+	"event:goal",
+];
+
+// One codec string used everywhere: the panel URL param, the API query param
+// and what PHP parses. "is,visit%3Asource,taz.de;is_not,…" — per-token
+// encodeURIComponent keeps "," and ";" inside values unambiguous.
+export function encodeFilters(filters) {
+	if (!filters.length) return null;
+	return filters
+		.map((f) => [f.op, f.dimension, ...f.values].map(encodeURIComponent).join(","))
+		.join(";");
+}
+
+export function decodeFilters(str) {
+	if (!str) return [];
+	const out = [];
+	for (const chunk of str.split(";")) {
+		let parts;
+		try {
+			parts = chunk.split(",").map(decodeURIComponent);
+		} catch (e) {
+			continue; // malformed percent sequence in a hand-edited URL
+		}
+		const [op, dimension, ...values] = parts;
+		if (!FILTER_OPS.includes(op)) continue;
+		if (!FILTERABLE_DIMENSIONS.includes(dimension)) continue;
+		if (!values.length || values.every((v) => v === "")) continue;
+		out.push({ op, dimension, values: values.filter((v) => v !== "") });
+	}
+	return out;
 }
 
 // How far one ‹ › step moves the anchor, per period. null = not navigable.
@@ -175,6 +232,14 @@ export function navLabel(period, date, locale) {
 	return `${ds} – ${de}`;
 }
 
+// "27 May – 23 Jun 2026" from two "Y-m-d" strings
+export function rangeLabel(from, to, locale) {
+	const loc = locale || "en";
+	const ds = new Intl.DateTimeFormat(loc, { day: "numeric", month: "short" }).format(parseYmd(from));
+	const de = new Intl.DateTimeFormat(loc, { day: "numeric", month: "short", year: "numeric" }).format(parseYmd(to));
+	return `${ds} – ${de}`;
+}
+
 // ISO 3166-1 alpha-2 -> flag emoji
 export function countryFlag(code) {
 	if (!code || code.length !== 2) return "🏳️";
@@ -223,6 +288,14 @@ export function toTable(rows, opts) {
 		};
 	}
 
+	// Share-of-total column, like Plausible. Only on single-metric tabs:
+	// multi-metric cards (pages, goals) are already at capacity.
+	const withShare =
+		columnDefs.length === 1 && rows.some((r) => r.metrics.percentage != null);
+	if (withShare) {
+		columns.percentage = { label: "%", type: "text", align: "right", mobile: true };
+	}
+
 	const tableRows = rows.map((r) => {
 		const label =
 			r.label === ""
@@ -244,6 +317,9 @@ export function toTable(rows, opts) {
 		};
 		for (const col of columnDefs) {
 			out[col.key] = formatMetric(col.key, r.metrics[col.key]);
+		}
+		if (withShare) {
+			out.percentage = formatMetric("percentage", r.metrics.percentage);
 		}
 		return out;
 	});

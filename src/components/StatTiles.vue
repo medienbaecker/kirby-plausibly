@@ -48,10 +48,21 @@ export default {
 			return stat ? formatMetric(kpi.key, stat.value) : "—";
 		},
 		delta(kpi) {
-			const change = this.stat(kpi)?.change ?? null;
-			if (change === null) return " ";
-			if (change === 0) return "0%";
-			return (change > 0 ? "↑ " : "↓ ") + Math.abs(change) + "%";
+			const stat = this.stat(kpi);
+			const change = stat?.change ?? null;
+			const comparing = stat != null && "previous" in stat;
+			const arrow =
+				change === null
+					? ""
+					: change === 0
+						? "0%"
+						: (change > 0 ? "↑ " : "↓ ") + Math.abs(change) + "%";
+			if (comparing) {
+				const vs = this.$t("medienbaecker.plausibly.compare.vs");
+				const previous = formatMetric(kpi.key, stat.previous ?? 0);
+				return `${arrow ? arrow + " " : ""}${vs} ${previous}`;
+			}
+			return arrow || " ";
 		},
 		theme(kpi) {
 			const change = this.stat(kpi)?.change ?? null;

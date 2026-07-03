@@ -14,10 +14,27 @@
 	"period.12mo": "Last 12 months",
 	"period.year": "Year to date",
 	"period.all": "All time",
+	"period.custom": "Custom range",
 
 	"yesterday": "Yesterday",
 	"previousPeriod": "Previous period",
 	"nextPeriod": "Next period",
+
+	"apply": "Apply",
+
+	"filter.reset": "Remove filter",
+	"filterBy": "Filter by {value}",
+	"filterBy.remove": "No longer filter by {value}",
+
+	"range.from": "From",
+	"range.to": "To",
+
+	"compare": "Compare",
+	"compare.yearOverYear": "Year over year",
+	"compare.customPeriod": "Custom period",
+	"compare.matchDayOfWeek": "Match day of week",
+	"compare.disable": "Disable comparison",
+	"compare.vs": "vs.",
 
 	"metric.visitors": "Unique visitors",
 	"metric.visits": "Total visits",

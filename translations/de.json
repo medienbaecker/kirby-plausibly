@@ -14,10 +14,27 @@
 	"period.12mo": "Letzte 12 Monate",
 	"period.year": "Aktuelles Jahr",
 	"period.all": "Gesamter Zeitraum",
+	"period.custom": "Benutzerdefiniert",
 
 	"yesterday": "Gestern",
 	"previousPeriod": "Vorheriger Zeitraum",
 	"nextPeriod": "Nächster Zeitraum",
+
+	"apply": "Anwenden",
+
+	"filter.reset": "Filter entfernen",
+	"filterBy": "Nach {value} filtern",
+	"filterBy.remove": "Nicht mehr nach {value} filtern",
+
+	"range.from": "Von",
+	"range.to": "Bis",
+
+	"compare": "Vergleichen",
+	"compare.yearOverYear": "Vorjahresvergleich",
+	"compare.customPeriod": "Benutzerdefinierter Zeitraum",
+	"compare.matchDayOfWeek": "Gleicher Wochentag",
+	"compare.disable": "Vergleich deaktivieren",
+	"compare.vs": "vs.",
 
 	"metric.visitors": "Eindeutige Besucher",
 	"metric.visits": "Besuche gesamt",

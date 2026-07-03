@@ -34,15 +34,9 @@ class Pages
 			return null;
 		}
 
-		$link = $page->panel()->url(true);
-
-		if ($lang !== null) {
-			$link .= '?language=' . $lang;
-		}
-
 		return [
 			'title' => $page->title()->value(),
-			'link'  => $link,
+			'link'  => $page->url($lang),
 		];
 	}
 

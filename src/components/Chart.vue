@@ -1,5 +1,5 @@
 <template>
-	<div class="k-plausible-chart">
+	<div class="k-plausible-chart" :aria-busy="loading || null">
 		<span ref="probe" class="k-plausible-chart-probe" aria-hidden="true" />
 		<div v-show="series.length" ref="chart" class="k-plausible-chart-canvas" />
 		<div v-if="loading && !series.length" class="k-plausible-chart-skeleton" />
@@ -18,6 +18,8 @@ import { formatMetric } from "../helpers.js";
 export default {
 	props: {
 		series: { type: Array, default: () => [] }, // [{ date, value }]
+		// comparison series, index-paired with `series` like Plausible
+		comparison: { type: Array, default: () => [] },
 		metric: { type: String, default: "visitors" },
 		interval: { type: String, default: "day" },
 		loading: { type: Boolean, default: false },
@@ -89,6 +91,10 @@ export default {
 				return Date.parse(iso) / 1000;
 			});
 			const ys = this.series.map((p) => p.value);
+			const comparing = this.comparison.length > 0;
+			const ysPrev = comparing
+				? this.series.map((p, i) => this.comparison[i]?.value ?? null)
+				: null;
 			const c = this.colors();
 			const metric = this.metric;
 			const interval = this.interval;
@@ -161,6 +167,18 @@ export default {
 						},
 						value: (u, v) => formatMetric(metric, v),
 					},
+					...(comparing
+						? [
+							{
+								stroke: this.rgba(c.line, 0.5),
+								width: 1.5,
+								dash: [5, 5],
+								paths: uPlot.paths.spline(),
+								points: { show: false },
+								value: (u, v) => formatMetric(metric, v),
+							},
+						]
+						: []),
 				],
 				plugins: [
 					this.axisLabelsPlugin({
@@ -175,7 +193,7 @@ export default {
 				],
 			};
 
-			this.chart = new uPlot(opts, [xs, ys], this.$refs.chart);
+			this.chart = new uPlot(opts, comparing ? [xs, ys, ysPrev] : [xs, ys], this.$refs.chart);
 		},
 		rgba(rgb, alpha) {
 			const m = rgb.match(/\d+/g);
@@ -269,7 +287,7 @@ export default {
 		},
 		tooltipPlugin() {
 			const self = this;
-			let tip, valueEl, dateEl;
+			let tip, valueEl, dateEl, compEl;
 			return {
 				hooks: {
 					init: (u) => {
@@ -279,7 +297,9 @@ export default {
 						valueEl.className = "k-plausible-chart-tooltip-value";
 						dateEl = document.createElement("span");
 						dateEl.className = "k-plausible-chart-tooltip-date";
-						tip.append(valueEl, dateEl);
+						compEl = document.createElement("span");
+						compEl.className = "k-plausible-chart-tooltip-comparison";
+						tip.append(valueEl, dateEl, compEl);
 						u.over.appendChild(tip);
 						u.over.addEventListener("mouseleave", () => tip.removeAttribute("data-show"));
 					},
@@ -292,6 +312,20 @@ export default {
 						}
 						valueEl.textContent = formatMetric(self.metric, y);
 						dateEl.textContent = self.formatTooltipDate(u.data[0][idx], self.interval);
+						const prev = u.data[2]?.[idx];
+						const prevPoint = self.comparison[idx];
+						if (prev != null && prevPoint) {
+							const s = String(prevPoint.date);
+							const iso = s.includes(" ") ? s.replace(" ", "T") : s + "T00:00:00";
+							const seconds = Date.parse(iso) / 1000;
+							compEl.textContent =
+								formatMetric(self.metric, prev) +
+								" · " +
+								self.formatTooltipDate(seconds, self.interval);
+							compEl.style.display = "";
+						} else {
+							compEl.style.display = "none";
+						}
 						tip.setAttribute("data-show", "true");
 					},
 				},
@@ -364,6 +398,10 @@ export default {
 }
 
 .k-plausible-chart-tooltip-date {
+	color: var(--color-gray-400);
+}
+
+.k-plausible-chart-tooltip-comparison {
 	color: var(--color-gray-400);
 }
 </style>

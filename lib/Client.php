@@ -50,23 +50,44 @@ class Client
 		return $data;
 	}
 
-	public function aggregate(string $period, array $metrics, ?string $date = null): array
+	public function aggregate(string $period, array $metrics, ?string $date = null, array $filters = [], ?array $custom = null, array $compare = []): array
 	{
-		$current = $this->query([
+		// the API rejects views_per_visit combined with an event:page filter;
+		// the tile shows "—" for the missing metric
+		foreach ($filters as $filter) {
+			if (($filter[1] ?? null) === 'event:page') {
+				$metrics = array_values(array_diff($metrics, ['views_per_visit']));
+				break;
+			}
+		}
+
+		$body = [
 			'metrics'    => $metrics,
-			'date_range' => $this->range($period, $date),
-		]);
+			'date_range' => $this->range($period, $date, $custom),
+		];
+		if ($filters !== []) {
+			$body['filters'] = $filters;
+		}
+		$current = $this->query($body);
 
 		$values = $current['results'][0]['metrics'] ?? [];
 		$range  = $current['query']['date_range'] ?? null;
+		$mode   = $compare['mode'] ?? null;
 
 		$previous = [];
-		if ($period !== 'all' && $range && $prevRange = $this->previousRange($range)) {
-			$prev = $this->query([
-				'metrics'    => $metrics,
-				'date_range' => $prevRange,
-			]);
-			$previous = $prev['results'][0]['metrics'] ?? [];
+		if ($period !== 'all' && $range) {
+			$prevRange = $mode
+				? $this->comparisonRange($range, $compare)
+				: $this->previousRange($range);
+			if ($prevRange) {
+				// same filters on the comparison range so the change compares like with like
+				$prevBody = ['metrics' => $metrics, 'date_range' => $prevRange];
+				if ($filters !== []) {
+					$prevBody['filters'] = $filters;
+				}
+				$prev = $this->query($prevBody);
+				$previous = $prev['results'][0]['metrics'] ?? [];
+			}
 		}
 
 		$result = [];
@@ -78,22 +99,47 @@ class Client
 				'value'  => $value,
 				'change' => ($base > 0) ? round((($value - $base) / $base) * 100) : null,
 			];
+			if ($mode !== null) {
+				$result[$metric]['previous'] = $base;
+			}
 		}
 
 		return $result;
 	}
 
-	public function timeseries(string $period, string $metric, string $interval, ?string $date = null): array
+	public function timeseries(string $period, string $metric, string $interval, ?string $date = null, array $filters = [], ?array $custom = null, array $compare = []): array
 	{
 		$derived = $metric === 'views_per_visit';
 		$metrics = $derived ? ['pageviews', 'visits'] : [$metric];
 
-		$data = $this->query([
+		$body = [
 			'metrics'    => $metrics,
-			'date_range' => $this->range($period, $date),
+			'date_range' => $this->range($period, $date, $custom),
 			'dimensions' => ['time:' . $interval],
-		]);
+		];
+		if ($filters !== []) {
+			$body['filters'] = $filters;
+		}
+		$data   = $this->query($body);
+		$series = $this->parseSeries($data, $interval, $derived);
 
+		if (($compare['mode'] ?? null) !== null && $period !== 'all') {
+			$range     = $data['query']['date_range'] ?? null;
+			$compRange = is_array($range) ? $this->comparisonRange($range, $compare) : null;
+			if ($compRange) {
+				$compBody = $body;
+				$compBody['date_range'] = $compRange;
+				$comparison = $this->parseSeries($this->query($compBody), $interval, $derived);
+				return ['series' => $series, 'comparison' => $comparison];
+			}
+			return ['series' => $series, 'comparison' => []];
+		}
+
+		return $series;
+	}
+
+	protected function parseSeries(array $data, string $interval, bool $derived): array
+	{
 		$values = [];
 		foreach ($data['results'] ?? [] as $row) {
 			$date = $row['dimensions'][0] ?? null;
@@ -193,15 +239,19 @@ class Client
 		return $series;
 	}
 
-	public function breakdown(string $dimension, array $metrics, string $period, int $limit, ?string $date = null): array
+	public function breakdown(string $dimension, array $metrics, string $period, int $limit, ?string $date = null, array $filters = [], ?array $custom = null): array
 	{
-		$data = $this->query([
+		$body = [
 			'metrics'    => $metrics,
-			'date_range' => $this->range($period, $date),
+			'date_range' => $this->range($period, $date, $custom),
 			'dimensions' => [$dimension],
 			'order_by'   => [[$metrics[0], 'desc']],
 			'pagination' => ['limit' => $limit],
-		]);
+		];
+		if ($filters !== []) {
+			$body['filters'] = $filters;
+		}
+		$data = $this->query($body);
 
 		$rows = [];
 		foreach ($data['results'] ?? [] as $row) {
@@ -229,8 +279,29 @@ class Client
 		return (int) $response->content();
 	}
 
-	protected function range(string $period, ?string $date = null): array|string
+	protected function range(string $period, ?string $date = null, ?array $custom = null): array|string
 	{
+		if ($period === 'custom') {
+			if ($custom === null) {
+				return $this->range('28d', $date);
+			}
+			try {
+				$start = new DateTime($custom[0]);
+				$end   = new DateTime($custom[1]);
+				$today = new DateTime('today');
+				// custom ranges may include (partial) today, unlike presets
+				if ($end > $today) {
+					$end = clone $today;
+				}
+				if ($start > $end) {
+					$start = clone $end;
+				}
+				return [$start->format('Y-m-d'), $end->format('Y-m-d')];
+			} catch (Throwable) {
+				return '28d';
+			}
+		}
+
 		// No anchor: keep the keyword form so the default view is unchanged.
 		if ($period === 'all') {
 			return 'all';
@@ -303,6 +374,52 @@ class Client
 		}
 
 		return [$start->format('Y-m-d'), $end->format('Y-m-d')];
+	}
+
+	// Comparison window for an explicit [start, end] range.
+	// $compare: ['mode' => previous_period|year_over_year|custom,
+	//            'matchDow' => bool, 'range' => [from, to] (custom only)]
+	protected function comparisonRange(array $range, array $compare): array|null
+	{
+		$mode = $compare['mode'] ?? 'previous_period';
+
+		if ($mode === 'custom') {
+			$custom = $compare['range'] ?? null;
+			return is_array($custom) ? $custom : null;
+		}
+
+		try {
+			$start = new DateTime(substr($range[0], 0, 10));
+			$end   = new DateTime(substr($range[1], 0, 10));
+		} catch (Throwable) {
+			return null;
+		}
+
+		if ($mode === 'year_over_year') {
+			$compStart = (clone $start)->modify('-1 year');
+			$compEnd   = (clone $end)->modify('-1 year');
+		} else {
+			$prev = $this->previousRange($range);
+			if ($prev === null) {
+				return null;
+			}
+			$compStart = new DateTime($prev[0]);
+			$compEnd   = new DateTime($prev[1]);
+		}
+
+		if ($compare['matchDow'] ?? false) {
+			// nearest shift (-3..+3 days) aligning the comparison start weekday
+			$delta = ((int) $start->format('N') - (int) $compStart->format('N') + 7) % 7;
+			if ($delta > 3) {
+				$delta -= 7;
+			}
+			if ($delta !== 0) {
+				$compStart->modify(($delta > 0 ? '+' : '') . $delta . ' days');
+				$compEnd->modify(($delta > 0 ? '+' : '') . $delta . ' days');
+			}
+		}
+
+		return [$compStart->format('Y-m-d'), $compEnd->format('Y-m-d')];
 	}
 
 	protected function previousRange(array $range): array|null

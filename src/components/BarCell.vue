@@ -9,9 +9,13 @@
 			:src="column.faviconBase + encodeURIComponent(row._raw)" alt="" loading="lazy"
 			@error="$event.target.style.visibility = 'hidden'" />
 		<span v-else-if="column.iconType === 'flag'" class="k-plausible-flag">{{ flag }}</span>
-		<k-link v-if="row._page" class="k-plausible-text k-plausible-page-link" :to="row._page.link"
-			:title="row._page.title">{{ value }}</k-link>
+		<button v-if="row._raw !== ''" type="button" class="k-plausible-text k-plausible-filter-label"
+			:aria-pressed="row._filtered ? 'true' : null"
+			:aria-label="$t('medienbaecker.plausibly.' + (row._filtered ? 'filterBy.remove' : 'filterBy'), { value })"
+			:title="value">{{ value }}</button>
 		<span v-else class="k-plausible-text" :title="value">{{ value }}</span>
+		<k-button v-if="row._page" :link="row._page.link" :title="row._page.title" icon="open" size="xs"
+			target="_blank" class="k-plausible-page-link" @click.native.stop />
 	</span>
 </template>
 
@@ -52,10 +56,15 @@ export default {
 	border-inline-end: 0;
 }
 
+.k-plausible-bars td[data-column-id="percentage"] {
+	color: var(--color-text-dimmed);
+}
+
 .k-plausible-bars tbody tr {
 	position: relative;
 	z-index: 0;
 	background: var(--table-color-back);
+	cursor: pointer;
 }
 
 .k-plausible-more {
@@ -70,7 +79,8 @@ export default {
 	white-space: nowrap;
 	cursor: pointer;
 	background-color: var(--table-color-back);
-	outline-offset: -.15rem;
+	--focus-outline-offset: -0.25rem;
+	border-radius: var(--rounded);
 
 	&:is(:hover, :focus-visible) {
 		color: var(--color-text);
@@ -121,7 +131,33 @@ export default {
 	z-index: 1;
 }
 
-.k-plausible-page-link:hover {
+.k-plausible-filter-label {
+	cursor: pointer;
+	text-align: start;
+	border-radius: var(--rounded-sm);
+}
+
+/* the whole row is the click target, so hovering it anywhere signals the action */
+.k-plausible-bars tbody tr:hover .k-plausible-filter-label,
+.k-plausible-filter-label:focus-visible {
 	text-decoration: underline;
+}
+
+/* clicking the actively filtered value removes the filter */
+.k-plausible-bars tbody tr:hover .k-plausible-filter-label[aria-pressed],
+.k-plausible-filter-label[aria-pressed]:focus-visible {
+	text-decoration: line-through;
+}
+
+.k-plausible-page-link {
+	flex: 0 0 auto;
+	z-index: 1;
+	opacity: 0.5;
+	height: 1.125rem;
+	padding-inline: var(--spacing-1);
+
+	&:is(:hover, :focus-visible) {
+		opacity: 1;
+	}
 }
 </style>
