@@ -29,12 +29,13 @@ return [
 						$key = License::readKey();
 
 						if ($key) {
+							$obfuscated = $kirby->user()?->isAdmin() !== true;
 							$version = $kirby->plugin('medienbaecker/plausibly')->version();
 							return [
 								'component' => 'k-plausibly-license-dialog',
 								'props' => [
 									'license' => [
-										'code'    => $key,
+										'code'    => License::code($obfuscated),
 										'version' => $version ? 'v' . $version : null,
 									],
 									'cancelButton' => false,
