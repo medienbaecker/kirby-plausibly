@@ -12,11 +12,11 @@ Adds an **Analytics** view to the Panel that mirrors the Plausible dashboard usi
 - Visitors-over-time chart; click a KPI stat to chart that metric
 - Breakdown cards with tabs: Top sources (Channels / Sources / Campaigns), Top pages (Top / Entry / Exit), Locations (Countries / Regions / Cities), Devices (Browser / OS / Size) and Goal conversions
 - Live "current visitors" count
-- Page rows link straight to the matching page in the Panel
+- Page rows link straight to the matching page on the website
 
 ## Requirements
 
-- Kirby 5
+- Kirby 6. For Kirby 5, use version 1.
 - A Plausible instance (Cloud or self-hosted / Community Edition) with a **Stats API key**
 
 ## Installation

@@ -3,7 +3,7 @@
     "description": "A native Plausible Analytics dashboard for the Kirby Panel",
     "license": "proprietary",
     "type": "kirby-plugin",
-    "version": "1.2.1",
+    "version": "6.0.0-rc.1",
     "keywords": ["kirby", "kirby-plugin", "plausible", "analytics", "panel", "dashboard", "statistics"],
     "authors": [
         {
@@ -16,8 +16,8 @@
         "issues": "https://github.com/medienbaecker/kirby-plausibly/issues"
     },
     "require": {
-        "php": "^8.2",
-        "getkirby/cms": "^5.0",
+        "php": "~8.3.0 || ~8.4.0 || ~8.5.0",
+        "getkirby/cms": "^6.0",
         "getkirby/composer-installer": "^1.2"
     },
     "config": {
