@@ -21,6 +21,7 @@ export default {
 		initialFrom: { type: String, default: null },
 		initialTo: { type: String, default: null },
 	},
+	emits: ["cancel", "submit"],
 	data() {
 		return {
 			from: this.initialFrom,

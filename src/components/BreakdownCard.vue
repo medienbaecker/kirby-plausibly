@@ -54,6 +54,7 @@ export default {
 		faviconBase: { type: String, default: "" },
 		defaultTab: { type: String, default: null },
 	},
+	emits: ["filter"],
 	data() {
 		return {
 			active: this.defaultTab || this.tabs[0].name,
@@ -150,8 +151,7 @@ export default {
 					period: this.period,
 					...(this.date ? { date: this.date } : {}),
 					...(this.from && this.to ? { from: this.from, to: this.to } : {}),
-					// $api.get() does not encode query values, PHP decodes once
-					...(this.filters ? { filters: encodeURIComponent(this.filters) } : {}),
+					...(this.filters ? { filters: this.filters } : {}),
 					limit: MAX,
 				});
 				if (token !== this.loadToken) return;

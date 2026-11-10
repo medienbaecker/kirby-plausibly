@@ -24,6 +24,7 @@ export default {
 		interval: { type: String, default: "day" },
 		loading: { type: Boolean, default: false },
 	},
+	emits: ["select"],
 	computed: {
 		locale() {
 			return this.$panel.translation?.code || undefined;
@@ -48,7 +49,7 @@ export default {
 		this.mo = new MutationObserver(() => this.render());
 		this.mo.observe(panel, { attributes: true, attributeFilter: ["data-theme"] });
 	},
-	beforeDestroy() {
+	beforeUnmount() {
 		this.destroy();
 		this.ro?.disconnect();
 		this.mo?.disconnect();

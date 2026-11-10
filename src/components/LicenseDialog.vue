@@ -36,6 +36,7 @@ export default {
 		cancelButton: { default: false },
 		submitButton: { default: false },
 	},
+	emits: ["cancel"],
 };
 </script>
 
@@ -46,6 +47,10 @@ export default {
 
 .k-plausibly-license-table {
 	table-layout: auto;
+}
+
+.k-table .k-plausibly-license-table td {
+	width: auto;
 }
 
 .k-plausibly-license-thanks {

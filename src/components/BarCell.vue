@@ -15,7 +15,7 @@
 			:title="value">{{ value }}</button>
 		<span v-else class="k-plausible-text" :title="value">{{ value }}</span>
 		<k-button v-if="row._page" :link="row._page.link" :title="row._page.title" icon="open" size="xs"
-			target="_blank" class="k-plausible-page-link" @click.native.stop />
+			target="_blank" class="k-plausible-page-link" @click.stop />
 	</span>
 </template>
 
@@ -43,12 +43,12 @@ export default {
 	width: 100%;
 }
 
-.k-plausible-bars :is(th, td):not([data-column-id="label"]) {
+.k-table.k-plausible-bars :is(th, td):not([data-column-id="label"]) {
 	width: 1px !important;
 	white-space: nowrap;
 }
 
-.k-plausible-bars td[data-column-id="label"] {
+.k-table.k-plausible-bars td[data-column-id="label"] {
 	width: 100% !important;
 }
 

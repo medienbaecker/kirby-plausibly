@@ -15,6 +15,7 @@ export default {
 		data: { type: Object, default: () => ({}) },
 		selected: { type: String, default: null },
 	},
+	emits: ["select"],
 	data() {
 		return { KPIS, wrapped: false };
 	},
@@ -31,7 +32,7 @@ export default {
 		this.ro = new ResizeObserver(() => this.checkWrap());
 		this.ro.observe(this.$el);
 	},
-	beforeDestroy() {
+	beforeUnmount() {
 		this.ro?.disconnect();
 	},
 	methods: {
@@ -77,7 +78,7 @@ export default {
 .k-plausible-stats {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
-	gap: var(--spacing-2px);
+	gap: 2px;
 }
 
 .k-plausible-stat {

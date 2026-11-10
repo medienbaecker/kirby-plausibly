@@ -12,22 +12,22 @@
 				<div class="k-plausible-period">
 					<k-button :dropdown="true" icon="calendar" variant="filled" size="sm" :text="periodLabel"
 						@click="$refs.periods.toggle()" />
-					<k-dropdown-content ref="periods" align-x="end">
-						<template v-for="(item, i) in menuItems">
-							<hr v-if="item.divider" :key="'hr' + i" />
-							<k-dropdown-item v-else :key="item.key" icon="calendar" :current="isCurrent(item)"
+					<k-dropdown ref="periods" align-x="end">
+						<template v-for="(item, i) in menuItems" :key="item.key ?? 'hr' + i">
+							<hr v-if="item.divider" />
+							<k-dropdown-item v-else icon="calendar" :current="isCurrent(item)"
 								@click="selectItem(item)">
 								{{ itemLabel(item) }}
 								<kbd v-if="item.hotkey" class="k-plausible-hotkey">{{ item.hotkey }}</kbd>
 							</k-dropdown-item>
 						</template>
-					</k-dropdown-content>
+					</k-dropdown>
 				</div>
 
 				<div v-if="comparison" class="k-plausible-compare">
 					<k-button :dropdown="true" variant="filled" size="sm" :text="compareLabel"
 						@click="$refs.compare.toggle()" />
-					<k-dropdown-content ref="compare" align-x="end">
+					<k-dropdown ref="compare" align-x="end">
 						<k-dropdown-item :current="comparison === 'previous_period'"
 							@click="setComparison('previous_period')">
 							{{ compareModes.previous_period }}
@@ -47,7 +47,7 @@
 						<k-dropdown-item icon="cancel" @click="setComparison(null)">
 							{{ $t("medienbaecker.plausibly.compare.disable") }}
 						</k-dropdown-item>
-					</k-dropdown-content>
+					</k-dropdown>
 				</div>
 
 				<k-button-group layout="collapsed" class="k-plausible-nav">
@@ -256,7 +256,7 @@ export default {
 		window.addEventListener("popstate", this.onPopState);
 		window.addEventListener("keydown", this.onKeydown);
 	},
-	beforeDestroy() {
+	beforeUnmount() {
 		clearInterval(this.pollTimer);
 		window.removeEventListener("popstate", this.onPopState);
 		window.removeEventListener("keydown", this.onKeydown);
@@ -534,8 +534,7 @@ export default {
 					period: this.period,
 					...(this.date ? { date: this.date } : {}),
 					...(this.period === "custom" ? { from: this.from, to: this.to } : {}),
-					// $api.get() does not encode query values, PHP decodes once
-					...(this.filterQuery ? { filters: encodeURIComponent(this.filterQuery) } : {}),
+					...(this.filterQuery ? { filters: this.filterQuery } : {}),
 					...this.comparisonParams(),
 				});
 				if (token !== this.kpiToken) return; // superseded by a newer request
@@ -555,7 +554,7 @@ export default {
 					interval: this.interval,
 					...(this.date ? { date: this.date } : {}),
 					...(this.period === "custom" ? { from: this.from, to: this.to } : {}),
-					...(this.filterQuery ? { filters: encodeURIComponent(this.filterQuery) } : {}),
+					...(this.filterQuery ? { filters: this.filterQuery } : {}),
 					...this.comparisonParams(),
 				});
 				if (token !== this.chartToken) return; // superseded by a newer request
@@ -613,6 +612,8 @@ export default {
 }
 
 .k-plausible-view .k-header-buttons {
+	flex-wrap: wrap;
+	flex-shrink: 1;
 	align-items: center;
 }
 
@@ -662,7 +663,7 @@ export default {
 }
 
 .k-plausible-chart-card {
-	margin-block-start: var(--spacing-2px);
+	margin-block-start: 2px;
 	padding: var(--spacing-6);
 	background: var(--table-color-back);
 	border: 1px solid var(--table-color-border);

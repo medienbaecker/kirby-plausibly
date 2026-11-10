@@ -1,6 +1,7 @@
 <?php
 
 use Kirby\Exception\InvalidArgumentException;
+use Kirby\Toolkit\HtmlString;
 use Medienbaecker\Plausibly\License;
 
 return [
@@ -56,7 +57,7 @@ return [
 								'fields' => [
 									'info' => [
 										'type' => 'info',
-										'text' => tt('medienbaecker.plausibly.license.info', ['url' => License::BUY_URL])
+										'text' => new HtmlString(tt('medienbaecker.plausibly.license.info', ['url' => License::BUY_URL]))
 									],
 									'key' => [
 										'label' => t('medienbaecker.plausibly.license.key'),
