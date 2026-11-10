@@ -15,6 +15,7 @@ Kirby::plugin(
 			'url'   => null,
 			'site'  => null,
 			'token' => null,
+			'cache' => true,
 		],
 		'translations' => require __DIR__ . '/translations.php',
 		'areas'        => array_merge(

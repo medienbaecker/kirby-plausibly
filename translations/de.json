@@ -80,7 +80,6 @@
 	"column.bounceRate": "Absprungrate",
 
 	"license.info": "Noch keinen Lizenzschlüssel? <a href='{{ url }}' target='_blank'>Lizenz kaufen</a>",
-	"license.licensed": "Lizenziert",
 	"license.activate": "Lizenz aktivieren",
 	"license.demo": "Demo",
 	"license.invalid": "Ungültige Lizenz",
