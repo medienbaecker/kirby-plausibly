@@ -613,6 +613,8 @@ export default {
 }
 
 .k-plausible-view .k-header-buttons {
+	flex-wrap: wrap;
+	flex-shrink: 1;
 	align-items: center;
 }
 
