@@ -408,9 +408,9 @@ class Client
 		}
 
 		if ($compare['matchDow'] ?? false) {
-			// nearest shift (-3..+3 days) aligning the comparison start weekday
+			// nearest shift aligning the comparison start weekday that keeps the comparison before the period
 			$delta = ((int) $start->format('N') - (int) $compStart->format('N') + 7) % 7;
-			if ($delta > 3) {
+			if ($delta > 3 || (clone $compEnd)->modify('+' . $delta . ' days') >= $start) {
 				$delta -= 7;
 			}
 			if ($delta !== 0) {
