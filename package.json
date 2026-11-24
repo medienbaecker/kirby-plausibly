@@ -10,6 +10,6 @@
     "uplot": "^1.6.32"
   },
   "devDependencies": {
-    "kirbyup": "^4.0.0-beta.1"
+    "kirbyup": "^4.0.0"
   }
 }
