@@ -51,9 +51,9 @@ This plugin only renders the dashboard. To collect data, add Plausible's own tra
 
 ## Licensing
 
-Kirby Plausibly is a commercial plugin. You can use it for free on local environments but using it in production requires a valid licence. You can pay what you want, the suggested price being 20€ per project. Feel free to choose "0" when working on a purposeful project ❤️
+Kirby Plausibly is a commercial plugin. You can use it for free on local environments but using it in production requires a valid license. You can pay what you want, the suggested price being 20€ per project. Feel free to choose "0" when working on a purposeful project ❤️
 
-[Buy a licence](https://medienbaecker.com/plugins/plausibly)
+[Buy a license](https://medienbaecker.com/plugins/plausibly)
 
 ## Credits
 
