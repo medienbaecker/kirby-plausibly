@@ -45,7 +45,7 @@ export default {
 	margin-block-end: var(--spacing-2);
 }
 
-.k-plausibly-license-table {
+.k-table .k-plausibly-license-table {
 	table-layout: auto;
 }
 
